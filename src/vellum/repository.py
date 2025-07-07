@@ -2,10 +2,12 @@ from typing import Generic, Tuple, TypeVar
 from vellum.model import VellumBaseModel
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 from uuid import UUID
-
+from vellum.aggregation import VellumAggregationPipeline
 from motor.motor_asyncio import  AsyncIOMotorDatabase, AsyncIOMotorCollection # type: ignore
 from pymongo.results import InsertOneResult, UpdateResult, DeleteResult
-from bson import ObjectId # type: ignore
+from bson.objectid import ObjectId
+
+from vellum.query import QueryExpression # type: ignore
 
 
 T = TypeVar('T', bound=VellumBaseModel)
@@ -16,7 +18,6 @@ class VellumRepository(Generic[T]):
                   self,model_cls:Type[T]
                  ,database:AsyncIOMotorDatabase # type: ignore
                  ):
-        # The type constraint on T ensures model_cls is a subclass of VellumBaseModel
         
         self.model_cls:Type[T] = model_cls
         self.collection: AsyncIOMotorCollection[Dict[str, Any]] = database[model_cls.get_collection_name()] # type: ignore
@@ -83,30 +84,33 @@ class VellumRepository(Generic[T]):
         if result.deleted_count == 0:
             raise DocumentNotFoundError(f"Document with ID {id} not found.")
         return True
+    
     async def find(
         self,
-        query: Dict[str, Any] = {},
+        query: Union[Dict[str, Any], QueryExpression] = {},
         skip: int = 0,
         limit: int = 0,
         sort: Optional[List[Tuple[str, int]]] = None,
-    )->List[T]:
-        #add type safety for the query and the sort
-        processed_query:Dict[str,Any]={}
-        for key,value in processed_query:
-            if isinstance(value, UUID):
-                processed_query[key] = ObjectId(str(value))
-            elif isinstance(value, dict): # type: ignore
-                    processed_query[key] = value
-            else:        
-                    processed_query[key] = value
+    ) -> List[T]:
+        
+        mongo_query: Dict[str, Any]
+        
+        if isinstance(query, QueryExpression):
+            mongo_query = query.to_mongo_query()
+        else:
+            mongo_query = query
+
         if limit < 0:
-                limit = 0
+            limit = 0
         if skip < 0:
-             skip = 0            
-        cursor = self.collection.find(processed_query).skip(skip).limit(limit)
+            skip = 0
+            
+        cursor = self.collection.find(mongo_query).skip(skip).limit(limit)
         if sort:
             cursor = cursor.sort(sort)
-        document:List[dict[str,Any]]=await cursor.to_list(length=limit if limit > 0 else None)
-        return [self.model_cls.from_mongo(doc) for doc in document]            
-       
+        documents: List[Dict[str, Any]] = await cursor.to_list(length=limit if limit > 0 else None)
+        return [self.model_cls.from_mongo(doc) for doc in documents]
+    async def aggregate(self)-> VellumAggregationPipeline[T]:
+        return VellumAggregationPipeline(self.collection, self.model_cls)
+
          
