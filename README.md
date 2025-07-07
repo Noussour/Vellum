@@ -1,56 +1,48 @@
-Task 1: Implement Soft Deletes
-Goal 🥅: To add a non-destructive delete feature, allowing documents to be marked as "deleted" and later restored.
+Your Actionable Vellum Roadmap: The Path Forward
+Implement Soft Deletes
 
-Implementation Plan:
+Goal: Add soft_delete() and restore() methods, and have reads automatically ignore deleted documents.
 
-Add deleted_at: Optional[datetime.datetime] = None to the VellumBaseModel.
+Build the Expressive Update API
 
-Create a soft_delete(id) method in the repository that sets the deleted_at field to the current time.
+Goal: Create the Vellum.U update builder for safe, atomic operations like $inc and $push.
 
-Create a restore(id) method that unsets the deleted_at field.
+Add High-Performance Bulk Operations
 
-Modify get, find, and find_one to automatically filter out documents where deleted_at is not None.
+Goal: Implement bulk_create, bulk_update, and bulk_delete for efficient batch processing.
 
-Add an include_deleted: bool = False parameter to those read methods to allow fetching of deleted documents.
+Enhance Type Support
 
-Task 2: High-Performance Bulk Operations
-Goal ⚡: To provide a highly efficient way to handle many documents at once, reducing database roundtrips.
+Goal: Add seamless handling for Python Enums and an API for user-defined custom types.
 
-Implementation Plan:
+Implement Database-Level Validation
 
-Implement bulk_create(items: List[T]) using insert_many.
+Goal: Automatically create MongoDB JSON Schema validation rules from model fields like unique=True.
 
-Implement bulk_update(items: List[T]) using bulk_write.
+Add Geospatial Support
 
-Implement bulk_delete(ids: List[UUID]).
+Goal: Provide built-in GeoJSON types and a fluent query interface for location-based queries.
 
-Task 3: Advanced Type & Feature Support
-Goal 🎨: To enhance developer experience by seamlessly supporting more data patterns.
+Integrate Transaction Management
 
-Implementation Plan:
+Goal: Create a transaction() context manager for multi-document ACID operations.
 
-Enum & Custom Types: Implement automatic conversion for Python Enums and an API for user-defined types.
+Build Relationship Management
 
-Full-Text Search: Add a .search(text: str) repository method and allow text index definition in the model's Settings.
+Goal: Implement a Reference type and fetch_related methods to work with linked documents.
 
-Task 4: Advanced Integrations
-Goal 🔗: To integrate Vellum with other systems and advanced MongoDB features.
+Add API & Performance Helpers
 
-Implementation Plan:
+Goal: Implement the @cache() decorator for caching and the .paginate() method for intelligent pagination.
 
-Transaction Management: Create a transaction() context manager for ACID operations.
+Integrate with Data Science Libraries
 
-Caching Layer: Implement a @cache(ttl=...) decorator for read methods.
+Goal: Implement .to_pandas() and .to_polars() on query results.
 
-Relationship Management: Create a Reference[T] type and fetch_related methods.
+Finalize Developer Tooling
 
-Task 5: Production Readiness
-Goal 🚀: To finalize the library with tooling and documentation.
+Goal: Build the integrated asynchronous migration system, the in-memory testing mocks, and the FastAPI integration utilities.
 
-Implementation Plan:
+Benchmark and Document
 
-FastAPI Utilities: Create Depends functions for easy repository injection.
-
-Schema Helpers: Build tools for data migrations (e.g., renaming fields).
-
-Benchmarking & Docs: Create performance tests and write the complete user guide.
+Goal: Create performance benchmarks and write the complete user guide and API reference for release.
