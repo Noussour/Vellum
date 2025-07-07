@@ -6,7 +6,7 @@ from vellum.aggregation import VellumAggregationPipeline
 from motor.motor_asyncio import  AsyncIOMotorDatabase, AsyncIOMotorCollection # type: ignore
 from pymongo.results import InsertOneResult, UpdateResult, DeleteResult
 from bson.objectid import ObjectId
-from vellum.hooks import get_hooks_for_model
+from vellum.hooks import get_hooks_for_model # type: ignore
 from vellum.query import QueryExpression # type: ignore
 
 

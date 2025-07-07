@@ -1,4 +1,3 @@
-# src/vellum/hooks.py
 from typing import Callable, Dict, List, Literal, Type, Coroutine, Any
 
 HookEvent = Literal["before_insert", "after_insert", "before_update", "after_update", "before_delete", "after_delete"]
@@ -38,5 +37,5 @@ def after_delete(func: HookFn) -> HookFn:
     setattr(func, '_vellum_hook_event', 'after_delete')
     return func
 
-def get_hooks_for_model(model_cls: Type, event: HookEvent) -> List[HookFn]:
+def get_hooks_for_model(model_cls: Type, event: HookEvent) -> List[HookFn]: # type: ignore
     return _HOOKS.get(model_cls, {}).get(event, []) # type: ignore

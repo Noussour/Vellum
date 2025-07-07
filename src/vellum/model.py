@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 import uuid
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_core import PydanticUndefined
-from vellum.hooks import _register_hook
+from vellum.hooks import _register_hook # type: ignore
 import inspect
 
 
