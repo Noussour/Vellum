@@ -1,4 +1,5 @@
 from typing import Generic, Tuple, TypeVar
+from vellum.exceptions import DocumentNotFoundError, OptimisticLockError
 from vellum.model import VellumBaseModel
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 from uuid import UUID
@@ -11,8 +12,7 @@ from vellum.query import QueryExpression # type: ignore
 
 
 T = TypeVar('T', bound=VellumBaseModel)
-class DocumentNotFoundError(Exception):
-    pass
+
 class VellumRepository(Generic[T]):
     def __init__(
                   self,model_cls:Type[T]
@@ -51,26 +51,47 @@ class VellumRepository(Generic[T]):
       
         return self.model_cls.from_mongo(document_data)  
 
-    async def update(self, id: Union[UUID, str,ObjectId], item:T) -> Optional[T]:
+    async def update(self, id: Union[UUID, str, ObjectId], item: T) -> T:
         if not isinstance(item, self.model_cls):
-            raise TypeError(f"item must be an instance of {self.model_cls}, got {type(item)}")
+           raise TypeError(f"item must be an instance of {self.model_cls}, got {type(item)}")
+
         for hook in get_hooks_for_model(self.model_cls, "before_update"):
             await hook(item)
+
+        query_id: ObjectId
         if isinstance(id, UUID):
-            query_id = ObjectId(str(id))
+           query_id = ObjectId(str(id))
         elif isinstance(id, str):
             try:
-                query_id = ObjectId(str(UUID(id)))
-            except Exception: 
-                raise ValueError(f"Invalid ID format: {id}. Must be a valid UUID string or ObjectId string.")
+                query_id = ObjectId(id)
+            except Exception:
+               raise ValueError(f"Invalid ID format for string: {id}")
         elif isinstance(id, ObjectId): # type: ignore
             query_id = id
         else:
-            raise TypeError(f"Invalid type for document_id: {type(id)}. Expected UUID, str, or ObjectId.")
-        doc_data = item.to_mongo()
-        result: UpdateResult = await self.collection.update_one({"_id": query_id}, {"$set": doc_data})
+           raise TypeError(f"Invalid type for document_id: {type(id)}")
+
+  
+        query: Dict[str, Any] = {"_id": query_id, "version": item.version}
+
+        doc_data = item.model_dump(by_alias=True, exclude={"version"})
+        update_op = { # type: ignore
+        "$set": doc_data,
+        "$inc": {"version": 1}
+               }
+        result: UpdateResult = await self.collection.update_one(query, update_op) # type: ignore
+        doc_exists = True
         if result.modified_count == 0:
-            raise DocumentNotFoundError(f"Document with ID {id} not found or no changes made.")
+             doc_exists = await self.collection.count_documents({"_id": query_id}, limit=1)
+             if not doc_exists:
+                 raise DocumentNotFoundError(doc_id=id)
+             else:
+                  raise OptimisticLockError(doc_id=id, version=item.version)
+        
+        item.version += 1
+        for hook in get_hooks_for_model(self.model_cls, "after_update"):
+            await hook(item)
+
         return item
     async def delete(self, id: Union[UUID, str,ObjectId]) -> bool:  
         if isinstance(id, UUID):

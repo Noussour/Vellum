@@ -13,6 +13,7 @@ class VellumBaseModel(BaseModel):
     id: UUID = Field(default_factory=uuid.uuid4, alias="_id")
     created_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)) 
     updated_at: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)) 
+    version: int = 1
     model_config = ConfigDict(
         populate_by_name=True,  
         json_encoders={
