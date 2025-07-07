@@ -6,7 +6,7 @@ from vellum.aggregation import VellumAggregationPipeline
 from motor.motor_asyncio import  AsyncIOMotorDatabase, AsyncIOMotorCollection # type: ignore
 from pymongo.results import InsertOneResult, UpdateResult, DeleteResult
 from bson.objectid import ObjectId
-
+from vellum.hooks import get_hooks_for_model
 from vellum.query import QueryExpression # type: ignore
 
 
@@ -25,6 +25,8 @@ class VellumRepository(Generic[T]):
     async def create(self,item:T)->T:
         if not isinstance(item, self.model_cls):
             raise TypeError(f"item must be an instance of {self.model_cls}, got {type(item)}")
+        for hook in get_hooks_for_model(self.model_cls, "before_insert"):
+            await hook(item)
         doc_data=item.to_mongo()
         result:InsertOneResult=await self.collection.insert_one(doc_data)
         if result.inserted_id:
@@ -52,6 +54,8 @@ class VellumRepository(Generic[T]):
     async def update(self, id: Union[UUID, str,ObjectId], item:T) -> Optional[T]:
         if not isinstance(item, self.model_cls):
             raise TypeError(f"item must be an instance of {self.model_cls}, got {type(item)}")
+        for hook in get_hooks_for_model(self.model_cls, "before_update"):
+            await hook(item)
         if isinstance(id, UUID):
             query_id = ObjectId(str(id))
         elif isinstance(id, str):
@@ -80,9 +84,16 @@ class VellumRepository(Generic[T]):
             query_id = id
         else:
             raise TypeError(f"Invalid type for document_id: {type(id)}. Expected UUID, str, or ObjectId.")
+        doc_to_delete = await self.get(id)
+        if not doc_to_delete:
+            raise DocumentNotFoundError(f"Document with ID {id} not found.")
+        for hook in get_hooks_for_model(self.model_cls, "before_delete"):
+            await hook(doc_to_delete)
         result: DeleteResult = await self.collection.delete_one({"_id": query_id})
         if result.deleted_count == 0:
             raise DocumentNotFoundError(f"Document with ID {id} not found.")
+        for hook in get_hooks_for_model(self.model_cls, "after_delete"):
+            await hook(doc_to_delete)
         return True
     
     async def find(

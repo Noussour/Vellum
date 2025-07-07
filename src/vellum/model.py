@@ -4,6 +4,9 @@ from uuid import UUID, uuid4
 import uuid
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_core import PydanticUndefined
+from vellum.hooks import _register_hook
+import inspect
+
 
 T_VellumBaseModel = TypeVar('T_VellumBaseModel', bound='VellumBaseModel')
 class VellumBaseModel(BaseModel):
@@ -56,7 +59,14 @@ class VellumBaseModel(BaseModel):
         current_value=getattr(self, name, PydanticUndefined)
         if current_value is not PydanticUndefined and current_value!=value:
             super().__setattr__('updated_at', datetime.datetime.now(datetime.timezone.utc))
-        super().__setattr__(name, value)        
+        super().__setattr__(name, value) 
+        
+    def __init_subclass__(cls, **kwargs): # type: ignore
+        super().__init_subclass__(**kwargs)
+        for _, method in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(method, '_vellum_hook_event'): # type: ignore
+                event = getattr(method, '_vellum_hook_event') # type: ignore
+                _register_hook(cls, event, method)        # type: ignore
             
         
         
